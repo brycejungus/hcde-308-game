@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Same Color? — a simultaneous contrast game</title>
+<title>Where's the Color? — a simultaneous contrast game</title>
 <style>
   :root {
     --paper: #f8f5ea;
@@ -85,6 +85,60 @@
   .timer.low .timer-fill { background: var(--bad); }
   .timer-text { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3.2em; text-align: right; }
   .timer.low .timer-text { color: var(--bad); }
+  .menu {
+    position: fixed; inset: 0; z-index: 10;
+    background: var(--paper);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px; text-align: center; overflow-y: auto;
+    transition: opacity 0.4s ease;
+  }
+  .menu.hidden { opacity: 0; pointer-events: none; }
+  .panel { display: flex; flex-direction: column; align-items: center; gap: 40px; margin: auto 0; }
+  .panel.hidden { display: none; }
+  .menu h3 { margin: 0; font-size: clamp(1.8rem, 5vw, 2.6rem); letter-spacing: -0.02em; }
+  .level-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .level-card {
+    font: inherit; color: var(--ink); cursor: pointer;
+    width: 190px; padding: 22px 18px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: #fff; border: 2px solid var(--ink); border-radius: 14px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .level-card:hover { transform: translateY(-4px); box-shadow: 0 8px 0 var(--ink); }
+  .level-card strong { font-size: 1.35rem; }
+  .level-card span { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+  .mini { position: relative; width: 84px; height: 84px; border: 1.5px solid var(--ink); border-radius: 4px; }
+  .mini i { position: absolute; width: 14px; height: 14px; left: 30%; top: 35%; border-radius: 2px; background: #6aa86a; }
+  .mini-single { background: #1d2a1d; }
+  .mini-halves { background: linear-gradient(90deg, #1d2a1d 50%, #e6f0d8 50%); }
+  .mini-quads { background: conic-gradient(from 90deg at 50% 50%, #e6f0d8 0 25%, #c060a0 0 50%, #2c3a7a 0 75%, #1d2a1d 0); }
+  @media (max-width: 640px) {
+    .panel { gap: 24px; }
+    .level-cards { flex-direction: column; gap: 12px; width: 100%; max-width: 360px; }
+    .level-card {
+      width: 100%; padding: 14px 16px;
+      display: grid; grid-template-columns: 56px 1fr; column-gap: 14px; row-gap: 2px;
+      align-items: center; text-align: left;
+    }
+    .level-card .mini { width: 56px; height: 56px; grid-row: span 2; }
+    .level-card .mini i { width: 10px; height: 10px; }
+    .level-card strong { font-size: 1.15rem; }
+    .level-card span { font-size: 0.82rem; }
+  }
+  .back { font: inherit; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
+  .back:hover { color: var(--ink); }
+  .menu h2 {
+    margin: 0;
+    font-size: clamp(2.8rem, 9vw, 6rem);
+    line-height: 1.05; letter-spacing: -0.03em; font-weight: 800;
+  }
+  .menu .start {
+    font: inherit; font-size: 1.3rem; font-weight: 600;
+    padding: 14px 48px; border-radius: 999px;
+    border: 2px solid var(--ink); background: var(--ink); color: #fff;
+    cursor: pointer; transition: transform 0.15s ease;
+  }
+  .menu .start:hover { transform: scale(1.05); }
   .status { min-height: 3.2em; margin: 14px 0 8px; text-align: center; max-width: 520px; line-height: 1.45; }
   .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .scoreline { color: var(--muted); font-size: 0.9rem; margin-top: 12px; }
@@ -94,7 +148,36 @@
 </style>
 </head>
 <body>
-  <h1>Same Color?</h1>
+  <div class="menu" id="menu">
+    <div class="panel" id="titlePanel">
+      <h2>Where’s the Color?</h2>
+      <button class="start" id="startBtn">Start</button>
+    </div>
+
+    <div class="panel hidden" id="levelPanel">
+      <h3>Choose a difficulty</h3>
+      <div class="level-cards">
+        <button class="level-card" data-level="easy">
+          <div class="mini mini-single"><i></i></div>
+          <strong>Easy</strong>
+          <span>1 background · 6 tiles<br>10 seconds every round</span>
+        </button>
+        <button class="level-card" data-level="medium">
+          <div class="mini mini-halves"><i></i></div>
+          <strong>Medium</strong>
+          <span>2 backgrounds · 8 tiles<br>Timer shrinks each round</span>
+        </button>
+        <button class="level-card" data-level="hard">
+          <div class="mini mini-quads"><i></i></div>
+          <strong>Hard</strong>
+          <span>4 backgrounds · 10 tiles<br>Timer shrinks faster</span>
+        </button>
+      </div>
+      <button class="back" id="backBtn">← Back</button>
+    </div>
+  </div>
+
+  <h1>Where’s the Color?</h1>
   <p class="sub">Find every tile that is <em>exactly</em> the color in the swatch. Careful — the background changes how a color looks.</p>
 
   <div class="levels" role="group" aria-label="Difficulty">
@@ -365,19 +448,34 @@ function updateScoreline() {
     : `Round ${round} of ${ROUNDS} · Score ${score}${maxScore ? " / " + maxScore : ""}`;
 }
 
+function startLevel(lv) {
+  level = lv;
+  document.querySelectorAll(".levels button").forEach((b) => b.classList.toggle("active", b.dataset.level === lv));
+  round = 1; score = 0; maxScore = 0;
+  newRound();
+}
 document.querySelectorAll(".levels button").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".levels button").forEach((b) => b.classList.toggle("active", b === btn));
-    level = btn.dataset.level;
-    round = 1; score = 0; maxScore = 0;
-    newRound();
-  });
+  btn.addEventListener("click", () => startLevel(btn.dataset.level));
 });
 $("checkBtn").addEventListener("click", () => check(false));
 $("revealBtn").addEventListener("click", toggleReveal);
 $("nextBtn").addEventListener("click", next);
 
-newRound();
+// Menu flow: title → difficulty select → game
+$("startBtn").addEventListener("click", () => {
+  $("titlePanel").classList.add("hidden");
+  $("levelPanel").classList.remove("hidden");
+});
+$("backBtn").addEventListener("click", () => {
+  $("levelPanel").classList.add("hidden");
+  $("titlePanel").classList.remove("hidden");
+});
+document.querySelectorAll(".level-card").forEach((card) => {
+  card.addEventListener("click", () => {
+    $("menu").classList.add("hidden");
+    startLevel(card.dataset.level);
+  });
+});
 </script>
 </body>
 </html>
