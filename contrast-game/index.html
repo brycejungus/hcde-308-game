@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Same Color? — a simultaneous contrast game</title>
+<style>
+  :root {
+    --paper: #f8f5ea;
+    --ink: #2b2b2b;
+    --muted: #6b675e;
+    --neutral: #808080;
+    --good: #1f9d55;
+    --bad: #d64545;
+    --miss: #f0a020;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 0.95rem; text-align: center; max-width: 560px; line-height: 1.45; }
+
+  .levels { display: flex; gap: 8px; margin-bottom: 18px; }
+  .levels button, .controls button {
+    font: inherit; font-size: 0.95rem;
+    padding: 8px 16px; border-radius: 999px;
+    border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+    cursor: pointer;
+  }
+  .levels button.active { background: var(--ink); color: #fff; }
+  .controls button.primary { background: var(--ink); color: #fff; }
+  .controls button:disabled { opacity: 0.35; cursor: default; }
+
+  .target-row { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .target-card { background: var(--neutral); padding: 14px; border-radius: 10px; }
+  .swatch { width: 64px; height: 64px; border-radius: 6px; }
+  .target-text { font-size: 0.95rem; color: var(--muted); line-height: 1.4; }
+  .target-text strong { display: block; color: var(--ink); font-size: 1.1rem; }
+
+  .board {
+    position: relative;
+    width: min(520px, 90vw);
+    aspect-ratio: 1;
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    overflow: hidden;
+    user-select: none;
+  }
+  .region { position: absolute; transition: background-color 0.9s ease; }
+  .tile {
+    position: absolute;
+    width: 7%; height: 7%;
+    border: none; padding: 0; border-radius: 3px;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+  }
+  .tile.selected { outline: 2px dashed #fff; outline-offset: 4px; box-shadow: 0 0 0 4px rgba(0,0,0,0.0); }
+  .tile.selected::after {
+    content: ""; position: absolute; inset: -8px; border-radius: 6px;
+    border: 2px dashed #000; pointer-events: none;
+  }
+  .tile .mark {
+    position: absolute; top: -12px; right: -12px;
+    width: 20px; height: 20px; border-radius: 50%;
+    font-size: 12px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  .mark.good { background: var(--good); }
+  .mark.bad { background: var(--bad); }
+  .mark.miss { background: var(--miss); }
+  .board.locked .tile { cursor: default; }
+
+  .timer { width: min(520px, 90vw); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  .timer-track { flex: 1; height: 8px; border-radius: 999px; background: #e4dfcf; overflow: hidden; }
+  .timer-fill { height: 100%; width: 100%; background: var(--ink); border-radius: 999px; }
+  .timer.low .timer-fill { background: var(--bad); }
+  .timer-text { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3.2em; text-align: right; }
+  .timer.low .timer-text { color: var(--bad); }
+  .status { min-height: 3.2em; margin: 14px 0 8px; text-align: center; max-width: 520px; line-height: 1.45; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .scoreline { color: var(--muted); font-size: 0.9rem; margin-top: 12px; }
+  .legend { color: var(--muted); font-size: 0.85rem; margin-top: 6px; display: none; gap: 14px; }
+  .legend.show { display: flex; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+</style>
+</head>
+<body>
+  <h1>Same Color?</h1>
+  <p class="sub">Find every tile that is <em>exactly</em> the color in the swatch. Careful — the background changes how a color looks.</p>
+
+  <div class="levels" role="group" aria-label="Difficulty">
+    <button data-level="easy" class="active">Easy</button>
+    <button data-level="medium">Medium</button>
+    <button data-level="hard">Hard</button>
+  </div>
+
+  <div class="target-row">
+    <div class="target-card"><div class="swatch" id="swatch"></div></div>
+    <div class="target-text"><strong>← color you have to find</strong><span id="findCount"></span></div>
+  </div>
+
+  <div class="timer" id="timer">
+    <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+    <div class="timer-text" id="timerText">10.0s</div>
+  </div>
+  <div class="board" id="board"></div>
+
+  <div class="status" id="status"></div>
+  <div class="controls">
+    <button id="checkBtn" class="primary">Check</button>
+    <button id="revealBtn" disabled>Remove backgrounds</button>
+    <button id="nextBtn" disabled>Next round →</button>
+  </div>
+  <div class="legend" id="legend">
+    <span style="--c: var(--good)">found</span>
+    <span style="--c: var(--bad)">not a match</span>
+    <span style="--c: var(--miss)">missed match</span>
+  </div>
+  <div class="scoreline" id="scoreline"></div>
+
+<script>
+const LEVELS = {
+  //  tiles: total squares, matches: how many are the real target
+  //  delta: how far (in HSL lightness) the fakes are from the target
+  //  compensate: fakes are nudged *toward* their background, so contrast pushes them back to look like the target
+  easy:   { tiles: 6,  matches: 2, delta: 16, hueShift: 0,  satShift: 0,  layout: "single", compensate: false, timeStep: 0 },
+  medium: { tiles: 8,  matches: 2, delta: 10, hueShift: 5,  satShift: 5,  layout: "halves", compensate: true,  timeStep: 1.5 },
+  hard:   { tiles: 10, matches: 3, delta: 7,  hueShift: 9,  satShift: 10, layout: "quads",  compensate: true,  timeStep: 1.75 },
+};
+const ROUNDS = 5;
+const START_TIME = 10;  // seconds on round 1 (and every round on Easy)
+const MIN_TIME = 3;     // never go below this
+// Medium: 10 → 8.5 → 7 → 5.5 → 4s.  Hard: 10 → 8.25 → 6.5 → 4.75 → 3s.
+const roundTime = () => Math.max(MIN_TIME, START_TIME - LEVELS[level].timeStep * (round - 1));
+let timerId = null, expiryId = null, deadline = 0, roundLength = START_TIME;
+
+function startTimer() {
+  stopTimer();
+  roundLength = roundTime();
+  deadline = performance.now() + roundLength * 1000;
+  const tick = () => {
+    const left = Math.max(0, (deadline - performance.now()) / 1000);
+    $("timerFill").style.width = (left / roundLength) * 100 + "%";
+    $("timerText").textContent = left.toFixed(1) + "s";
+    $("timer").classList.toggle("low", left <= 3);
+    if (left <= 0) { timerId = null; check(true); return; }
+    timerId = requestAnimationFrame(tick);
+  };
+  tick();
+  // Backup in case animation frames are throttled (e.g. background tab)
+  expiryId = setTimeout(() => {
+    stopTimer();
+    $("timerFill").style.width = "0%";
+    $("timerText").textContent = "0.0s";
+    check(true);
+  }, roundLength * 1000 + 50);
+}
+function stopTimer() {
+  if (timerId) cancelAnimationFrame(timerId);
+  clearTimeout(expiryId);
+  timerId = null;
+}
+const NEUTRAL = { h: 0, s: 0, l: 50.2 }; // #808080, same as the swatch card
+
+const $ = (id) => document.getElementById(id);
+const board = $("board"), statusEl = $("status");
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const wrapHue = (h) => ((h % 360) + 360) % 360;
+const hsl = (c) => `hsl(${c.h.toFixed(1)}, ${c.s.toFixed(1)}%, ${c.l.toFixed(1)}%)`;
+const shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+const hueDiff = (from, to) => ((to - from + 540) % 360) - 180; // signed shortest distance
+
+let level = "easy", round = 1, score = 0, maxScore = 0;
+let state = null; // { target, regions, tiles, checked, revealed }
+
+function makeTarget() {
+  return { h: rand(0, 360), s: rand(40, 65), l: rand(45, 58) };
+}
+
+// Background "surrounds" chosen to push the target's appearance around.
+function makeBackgrounds(t, layout) {
+  const dark  = { h: wrapHue(t.h + rand(-40, 40)), s: rand(25, 50), l: rand(10, 16), name: "dark" };
+  const light = { h: wrapHue(t.h + rand(-40, 40)), s: rand(35, 60), l: rand(84, 90), name: "light" };
+  const comp  = { h: wrapHue(t.h + 180 + rand(-20, 20)), s: rand(65, 85), l: rand(45, 55), name: "complementary" };
+  const near  = { h: wrapHue(t.h + (Math.random() < 0.5 ? -1 : 1) * rand(25, 40)), s: rand(75, 90), l: clamp(t.l + rand(-6, 6), 35, 65), name: "neighbouring" };
+
+  if (layout === "single") {
+    return [{ ...[dark, light, comp][Math.floor(Math.random() * 3)], x: 0, y: 0, rw: 100, rh: 100 }];
+  }
+  if (layout === "halves") {
+    const [a, b] = shuffle([dark, light]);
+    return [{ ...a, x: 0, y: 0, rw: 50, rh: 100 }, { ...b, x: 50, y: 0, rw: 50, rh: 100 }];
+  }
+  const [a, b, c, d] = shuffle([dark, light, comp, near]);
+  return [
+    { ...a, x: 0, y: 0, rw: 50, rh: 50 }, { ...b, x: 50, y: 0, rw: 50, rh: 50 },
+    { ...c, x: 0, y: 50, rw: 50, rh: 50 }, { ...d, x: 50, y: 50, rw: 50, rh: 50 },
+  ];
+}
+
+// A fake: close to the target, but shifted toward its surround so that
+// simultaneous contrast pushes it back toward looking like the swatch.
+function makeFake(t, bg, lv) {
+  const amt = lv.delta * rand(0.85, 1.25);
+  let dirL = lv.compensate ? Math.sign(bg.l - t.l) || 1 : (Math.random() < 0.5 ? -1 : 1);
+  // On a mid-lightness coloured surround, lightness compensation matters less — mix it up a bit
+  if (lv.compensate && Math.abs(bg.l - t.l) < 10 && Math.random() < 0.5) dirL *= -1;
+  const l = clamp(t.l + dirL * amt, 8, 92);
+
+  let h = t.h, s = t.s;
+  if (lv.hueShift) {
+    const toward = Math.sign(hueDiff(t.h, bg.h)) || 1;
+    h = wrapHue(t.h + toward * lv.hueShift * rand(0.6, 1.2));
+  }
+  if (lv.satShift) {
+    s = clamp(t.s + Math.sign(bg.s - t.s) * lv.satShift * rand(0.6, 1.2), 10, 95);
+  }
+  return { h, s, l };
+}
+
+function placeTiles(regions, kinds) {
+  const T = 7, margin = 6, minDist = 13;
+  const placed = [];
+  const offset = Math.floor(Math.random() * regions.length);
+  // Spread real matches and fakes across all regions
+  let ti = 0, fi = 0;
+  return kinds.map((kind) => {
+    const r = regions[(kind === "target" ? ti++ : fi++ + offset) % regions.length];
+    let x, y, tries = 0;
+    do {
+      x = rand(r.x + margin, r.x + r.rw - margin);
+      y = rand(r.y + margin, r.y + r.rh - margin);
+      tries++;
+    } while (tries < 400 && placed.some((p) => Math.hypot(p.x - x, p.y - y) < minDist));
+    placed.push({ x, y });
+    return { kind, x, y, region: r };
+  });
+}
+
+function newRound() {
+  const lv = LEVELS[level];
+  const target = makeTarget();
+  const regions = makeBackgrounds(target, lv.layout);
+  const kinds = shuffle([
+    ...Array(lv.matches).fill("target"),
+    ...Array(lv.tiles - lv.matches).fill("fake"),
+  ]);
+  const tiles = placeTiles(regions, kinds).map((tile) => ({
+    ...tile,
+    color: tile.kind === "target" ? target : makeFake(target, tile.region, lv),
+    selected: false,
+  }));
+  state = { target, regions, tiles, checked: false, revealed: false };
+  render();
+  statusEl.textContent = "Click the tiles you think match, then press Check.";
+  $("findCount").textContent = `Find all ${lv.matches} matching tiles · ${roundTime()}s`;
+  $("checkBtn").disabled = false;
+  $("revealBtn").disabled = true;
+  $("revealBtn").textContent = "Remove backgrounds";
+  $("nextBtn").disabled = true;
+  $("nextBtn").textContent = round >= ROUNDS ? "Play again ↺" : "Next round →";
+  $("legend").classList.remove("show");
+  updateScoreline();
+  startTimer();
+}
+
+function render() {
+  $("swatch").style.background = hsl(state.target);
+  board.innerHTML = "";
+  board.classList.toggle("locked", state.checked);
+  for (const r of state.regions) {
+    const div = document.createElement("div");
+    div.className = "region";
+    Object.assign(div.style, { left: r.x + "%", top: r.y + "%", width: r.rw + "%", height: r.rh + "%" });
+    div.style.backgroundColor = hsl(state.revealed ? NEUTRAL : r);
+    board.appendChild(div);
+  }
+  state.tiles.forEach((tile, i) => {
+    const b = document.createElement("button");
+    b.className = "tile" + (tile.selected ? " selected" : "");
+    b.style.left = tile.x + "%";
+    b.style.top = tile.y + "%";
+    b.style.background = hsl(tile.color);
+    b.setAttribute("aria-label", `Tile ${i + 1}${tile.selected ? ", selected" : ""}`);
+    b.addEventListener("click", () => {
+      if (state.checked) return;
+      tile.selected = !tile.selected;
+      render();
+    });
+    if (state.checked) {
+      let cls = null, sym = "";
+      if (tile.kind === "target" && tile.selected) { cls = "good"; sym = "✓"; }
+      else if (tile.kind === "fake" && tile.selected) { cls = "bad"; sym = "✕"; }
+      else if (tile.kind === "target") { cls = "miss"; sym = "!"; }
+      if (cls) {
+        const m = document.createElement("span");
+        m.className = "mark " + cls;
+        m.textContent = sym;
+        b.appendChild(m);
+      }
+    }
+    board.appendChild(b);
+  });
+}
+
+function check(timedOut = false) {
+  if (state.checked) return;
+  const lv = LEVELS[level];
+  const picked = state.tiles.filter((t) => t.selected);
+  if (picked.length === 0 && !timedOut) { statusEl.textContent = "Select at least one tile first."; return; }
+  stopTimer();
+  const hits = picked.filter((t) => t.kind === "target").length;
+  const wrong = picked.length - hits;
+  const roundScore = Math.max(0, hits - wrong);
+  score += roundScore;
+  maxScore += lv.matches;
+  state.checked = true;
+  render();
+
+  let msg = timedOut ? "⏱ Time’s up! " : "";
+  if (hits === lv.matches && wrong === 0) msg += `Perfect — you found all ${lv.matches}. `;
+  else msg += `You found ${hits} of ${lv.matches}` + (wrong ? ` and picked ${wrong} impostor${wrong > 1 ? "s" : ""}. ` : ". ");
+  msg += "Now press “Remove backgrounds” to see the tiles on plain gray.";
+  statusEl.textContent = msg;
+
+  $("legend").classList.add("show");
+  $("checkBtn").disabled = true;
+  $("revealBtn").disabled = false;
+  $("nextBtn").disabled = false;
+  updateScoreline();
+}
+
+function toggleReveal() {
+  state.revealed = !state.revealed;
+  $("revealBtn").textContent = state.revealed ? "Bring backgrounds back" : "Remove backgrounds";
+  render();
+  if (state.revealed) {
+    statusEl.textContent = "On the same neutral gray, the impostors are obviously different — and the real matches look identical to the swatch. The colors never changed; only their surroundings did.";
+  }
+}
+
+function next() {
+  if (round >= ROUNDS) {
+    round = 1; score = 0; maxScore = 0;
+  } else {
+    round++;
+  }
+  newRound();
+}
+
+function updateScoreline() {
+  const done = round >= ROUNDS && state && state.checked;
+  $("scoreline").textContent = done
+    ? `Final score: ${score} / ${maxScore} on ${level}. ${level === "hard" ? "Play again?" : "Try a harder level?"}`
+    : `Round ${round} of ${ROUNDS} · Score ${score}${maxScore ? " / " + maxScore : ""}`;
+}
+
+document.querySelectorAll(".levels button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".levels button").forEach((b) => b.classList.toggle("active", b === btn));
+    level = btn.dataset.level;
+    round = 1; score = 0; maxScore = 0;
+    newRound();
+  });
+});
+$("checkBtn").addEventListener("click", () => check(false));
+$("revealBtn").addEventListener("click", toggleReveal);
+$("nextBtn").addEventListener("click", next);
+
+newRound();
+</script>
+</body>
+</html>
