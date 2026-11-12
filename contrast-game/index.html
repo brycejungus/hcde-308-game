@@ -43,7 +43,7 @@
     grid-template-rows: auto 1fr;
     grid-template-areas: "board top" "board bottom";
   }
-  .play .board { grid-area: board; }
+  .board-wrap { grid-area: board; position: relative; }
   .side-top { grid-area: top; }
   .side-bottom { grid-area: bottom; align-self: start; }
   .side-top, .side-bottom { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -104,12 +104,20 @@
   .mark.miss { background: var(--miss); }
   .board.locked .tile { cursor: default; }
 
-  .timer { display: flex; align-items: center; gap: 10px; }
-  .timer-track { flex: 1; height: 8px; border-radius: 999px; background: #e4dfcf; overflow: hidden; }
-  .timer-fill { height: 100%; width: 100%; background: var(--ink); border-radius: 999px; }
-  .timer.low .timer-fill { background: var(--bad); }
-  .timer-text { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3.2em; text-align: right; }
+  /* Timer: thick outlined bar whose fill goes green → yellow → red as time runs out */
+  .timer { display: flex; align-items: center; gap: 12px; }
+  .timer-track {
+    flex: 1; height: 20px; border-radius: 999px;
+    background: #fff; border: 2px solid var(--ink); overflow: hidden;
+  }
+  .timer-fill { height: 100%; width: 100%; background: hsl(135, 60%, 42%); border-radius: 999px; }
+  .timer-text { font-variant-numeric: tabular-nums; font-size: 1.4rem; font-weight: 800; min-width: 3.4em; text-align: right; }
   .timer.low .timer-text { color: var(--bad); }
+  .timer.low .timer-track { animation: timer-pulse 0.5s ease-in-out infinite alternate; }
+  @keyframes timer-pulse {
+    from { box-shadow: 0 0 0 0 rgba(214, 69, 69, 0); }
+    to   { box-shadow: 0 0 0 5px rgba(214, 69, 69, 0.35); }
+  }
   .menu {
     position: fixed; inset: 0; z-index: 10;
     background: var(--paper);
@@ -167,7 +175,6 @@
   .status { min-height: 4.4em; font-size: 0.92rem; line-height: 1.45; }
   .controls { display: flex; gap: 8px; flex-wrap: wrap; }
   .controls button { flex: 1; white-space: nowrap; }
-  .scoreline { color: var(--muted); font-size: 0.88rem; padding-top: 10px; border-top: 1px solid #e4dfcf; }
   .legend { color: var(--muted); font-size: 0.82rem; display: none; gap: 12px; flex-wrap: wrap; }
   .legend.show { display: flex; }
   /* Narrow screens (phones): stack — target/timer/check above the board */
@@ -209,8 +216,8 @@
   .demo-target { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--muted); position: relative; }
   .demo-card { background: var(--neutral); padding: 7px; border-radius: 6px; }
   .demo-swatch { width: 34px; height: 34px; border-radius: 3px; background: var(--demo-target); }
-  .demo-timer { height: 6px; border-radius: 999px; background: #e4dfcf; position: relative; }
-  .demo-timer i { position: absolute; inset: 0 35% 0 0; background: var(--ink); border-radius: 999px; }
+  .demo-timer { height: 12px; border-radius: 999px; background: #fff; border: 1.5px solid var(--ink); position: relative; }
+  .demo-timer i { position: absolute; inset: 0 35% 0 0; background: hsl(80, 65%, 44%); border-radius: 999px; }
   .demo-check { background: var(--ink); color: #fff; text-align: center; font-weight: 600; font-size: 0.85rem; padding: 7px; border-radius: 999px; position: relative; }
   .demo-reveal { border: 1.5px solid var(--ink); text-align: center; font-size: 0.75rem; padding: 5px; border-radius: 999px; position: relative; }
   .badge {
@@ -248,6 +255,64 @@
     .demo-target span:not(.badge) { display: none; }
     .steps { grid-template-columns: 1fr; }
   }
+  /* ---------- Scoreboard: round dots + big score ---------- */
+  .scoreboard {
+    display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;
+    background: #fff; border: 2px solid var(--ink); border-radius: 12px; padding: 10px 14px;
+  }
+  .sb-label { display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .sb-big { font-size: 1.7rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .sb-big small { font-size: 0.95rem; font-weight: 700; color: var(--muted); }
+  .sb-score { text-align: right; }
+  .round-pips { display: flex; gap: 6px; margin-top: 6px; }
+  .pip {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid #d3ccb6;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff;
+  }
+  .pip.current { border: 3px solid var(--ink); }
+  .pip.pass { background: var(--good); border-color: var(--good); }
+  .pip.miss { background: var(--bad); border-color: var(--bad); }
+  .goal { font-size: 0.85rem; color: var(--muted); margin-top: -6px; }
+  .goal b { color: var(--ink); }
+
+  /* "Picked 1 of 2" tracker */
+  .picked { display: flex; align-items: center; gap: 5px; margin-top: 5px; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+  .pick-pip { width: 13px; height: 13px; border-radius: 3px; border: 2px solid var(--ink); }
+  .pick-pip.on { background: var(--ink); }
+  .picked.over { color: var(--bad); }
+  .picked.over .pick-pip.on { background: var(--bad); border-color: var(--bad); }
+
+  /* Round result banner over the board */
+  .banner {
+    position: absolute; left: 50%; top: 18px; z-index: 5;
+    transform: translate(-50%, -10px); opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    background: #fff; border: 2px solid var(--ink); border-radius: 14px;
+    box-shadow: 0 6px 0 var(--ink);
+    padding: 10px 22px; text-align: center; min-width: 240px;
+  }
+  .banner.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; cursor: pointer; }
+  .banner strong { display: block; font-size: 1.35rem; }
+  .banner.pass strong { color: var(--good); }
+  .banner.miss strong { color: var(--bad); }
+  .banner span { font-size: 0.85rem; color: var(--muted); }
+
+  /* End-of-set summary */
+  .summary { text-align: center; }
+  .summary h3 { font-size: 1.9rem; }
+  .summary .round-pips { justify-content: center; gap: 10px; margin: 14px 0 6px; }
+  .summary .pip { width: 30px; height: 30px; font-size: 14px; }
+  .sum-stats { display: flex; justify-content: center; gap: 36px; margin: 16px 0 8px; }
+  .sum-stats .sb-big { font-size: 2.4rem; }
+  .summary .modal-actions { justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .ghost-btn {
+    font: inherit; font-size: 1.05rem; font-weight: 600;
+    padding: 11px 24px; border-radius: 999px;
+    border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+  }
+  .ghost-btn.hidden { display: none; }
+
   .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--c); }
 </style>
 </head>
@@ -269,12 +334,12 @@
         <button class="level-card" data-level="medium">
           <div class="mini mini-halves"><i></i></div>
           <strong>Medium</strong>
-          <span>2 backgrounds · 8 tiles<br>Timer shrinks each round</span>
+          <span>2 backgrounds · 9 tiles<br>15s, shrinking to 5s</span>
         </button>
         <button class="level-card" data-level="hard">
           <div class="mini mini-quads"><i></i></div>
           <strong>Hard</strong>
-          <span>4 backgrounds · 10 tiles<br>Timer shrinks faster</span>
+          <span>4 backgrounds · 10 tiles<br>30s, shrinking to 8s</span>
         </button>
       </div>
       <button class="back" id="backBtn">← Back</button>
@@ -313,7 +378,7 @@
       <ol class="steps">
         <li><b>1</b><span><strong>Study the color</strong> in the gray box. That’s the one you’re hunting for.</span></li>
         <li><b>2</b><span><strong>Click every tile</strong> on the board that’s <em>exactly</em> that color. Click a tile again to unselect it.</span></li>
-        <li><b>3</b><span><strong>Press Check before time runs out.</strong> On Medium and Hard, the timer gets shorter every round.</span></li>
+        <li><b>3</b><span><strong>Press Check before time runs out.</strong> Find every match with no wrong picks to pass the round. Pass 3 of 5 to clear the level.</span></li>
         <li><b>4</b><span><strong>Remove backgrounds</strong> afterward to see every tile on plain gray — and find out how you were fooled.</span></li>
       </ol>
 
@@ -339,12 +404,32 @@
     </header>
 
     <main class="play">
-      <div class="board" id="board"></div>
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+        <div class="banner" id="banner" role="status"><strong id="bannerTitle"></strong><span id="bannerSub"></span></div>
+      </div>
 
       <div class="side-top">
+        <div class="scoreboard">
+          <div>
+            <span class="sb-label">Round</span>
+            <span class="sb-big"><span id="roundNum">1</span><small> / 5</small></span>
+            <div class="round-pips" id="roundPips"></div>
+          </div>
+          <div class="sb-score">
+            <span class="sb-label">Score</span>
+            <span class="sb-big"><span id="scoreNum">0</span><small id="scoreMax"></small></span>
+          </div>
+        </div>
+        <div class="goal" id="goalText"></div>
+
         <div class="target-row">
           <div class="target-card"><div class="swatch" id="swatch"></div></div>
-          <div class="target-text"><strong>← color you have to find</strong><span id="findCount"></span></div>
+          <div class="target-text">
+            <strong>← color you have to find</strong>
+            <span id="findCount"></span>
+            <div class="picked" id="picked"></div>
+          </div>
         </div>
 
         <div class="timer" id="timer">
@@ -367,9 +452,25 @@
           <button id="revealBtn" disabled>Remove backgrounds</button>
           <button id="nextBtn" disabled>Next round →</button>
         </div>
-        <div class="scoreline" id="scoreline"></div>
       </div>
     </main>
+  </div>
+
+  <div class="modal hidden" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="sumTitle">
+    <div class="modal-card summary">
+      <h3 id="sumTitle"></h3>
+      <p class="lede" id="sumLede"></p>
+      <div class="round-pips" id="sumPips"></div>
+      <div class="sum-stats">
+        <div><span class="sb-label">Rounds passed</span><span class="sb-big" id="sumPassed"></span></div>
+        <div><span class="sb-label">Score</span><span class="sb-big" id="sumScore"></span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-btn" id="sumMenuBtn">Choose difficulty</button>
+        <button class="ghost-btn" id="sumAgainBtn">Play again</button>
+        <button class="got-it" id="sumNextBtn">Next level →</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -378,12 +479,14 @@ const LEVELS = {
   //  delta: how far (in HSL lightness) the fakes are from the target
   //  compensate: fakes are nudged *toward* their background, so contrast pushes them back to look like the target
   easy:   { tiles: 6,  matches: 2, delta: 16, hueShift: 0,  satShift: 0,  layout: "single", compensate: false, startTime: 10, timeStep: 0 },
-  medium: { tiles: 8,  matches: 2, delta: 10, hueShift: 5,  satShift: 5,  layout: "halves", compensate: true,  startTime: 30, timeStep: 5 },
-  hard:   { tiles: 10, matches: 3, delta: 7,  hueShift: 9,  satShift: 10, layout: "quads",  compensate: true,  startTime: 30, timeStep: 6.5 },
+  medium: { tiles: 9,  matches: 2, delta: 8,  hueShift: 7,  satShift: 8,  layout: "halves", compensate: true,  startTime: 15, timeStep: 2.5 },
+  hard:   { tiles: 10, matches: 3, delta: 7,  hueShift: 9,  satShift: 10, layout: "quads",  compensate: true,  startTime: 30, timeStep: 5.5 },
 };
 const ROUNDS = 5;
+const PASS_TARGET = 3;  // rounds you need to pass (all matches, no wrong picks) to clear a level
+const LEVEL_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
 const MIN_TIME = 3;     // never go below this
-// Easy: 10s every round.  Medium: 30 → 25 → 20 → 15 → 10s.  Hard: 30 → 23.5 → 17 → 10.5 → 4s.
+// Easy: 10s every round.  Medium: 15 → 12.5 → 10 → 7.5 → 5s.  Hard: 30 → 24.5 → 19 → 13.5 → 8s.
 const roundTime = () => Math.max(MIN_TIME, LEVELS[level].startTime - LEVELS[level].timeStep * (round - 1));
 let timerId = null, expiryId = null, deadline = 0, roundLength = 10;
 
@@ -394,7 +497,9 @@ function startTimer(seconds = roundTime(), total = seconds) {
   deadline = performance.now() + seconds * 1000;
   const tick = () => {
     const left = Math.max(0, (deadline - performance.now()) / 1000);
-    $("timerFill").style.width = (left / roundLength) * 100 + "%";
+    const frac = left / roundLength;
+    $("timerFill").style.width = frac * 100 + "%";
+    $("timerFill").style.background = `hsl(${Math.round(frac * 135)}, 65%, ${42 + (1 - frac) * 6}%)`;
     $("timerText").textContent = left.toFixed(1) + "s";
     $("timer").classList.toggle("low", left <= 3);
     if (left <= 0) { timerId = null; check(true); return; }
@@ -437,6 +542,7 @@ const shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = 
 const hueDiff = (from, to) => ((to - from + 540) % 360) - 180; // signed shortest distance
 
 let level = "easy", round = 1, score = 0, maxScore = 0;
+let results = []; // "pass" | "miss" for each finished round in this set
 let state = null; // { target, regions, tiles, checked, revealed }
 
 function makeTarget() {
@@ -524,9 +630,10 @@ function newRound() {
   $("revealBtn").disabled = true;
   $("revealBtn").textContent = "Remove backgrounds";
   $("nextBtn").disabled = true;
-  $("nextBtn").textContent = round >= ROUNDS ? "Play again ↺" : "Next round →";
+  $("nextBtn").textContent = round >= ROUNDS ? "See results →" : "Next round →";
   $("legend").classList.remove("show");
-  updateScoreline();
+  hideBanner();
+  updateScoreboard();
   startTimer();
 }
 
@@ -541,6 +648,7 @@ function render() {
     div.style.backgroundColor = hsl(state.revealed ? NEUTRAL : r);
     board.appendChild(div);
   }
+  updatePicked();
   state.tiles.forEach((tile, i) => {
     const b = document.createElement("button");
     b.className = "tile" + (tile.selected ? " selected" : "");
@@ -578,25 +686,41 @@ function check(timedOut = false) {
   const hits = picked.filter((t) => t.kind === "target").length;
   const wrong = picked.length - hits;
   const roundScore = Math.max(0, hits - wrong);
+  const passed = hits === lv.matches && wrong === 0;
   score += roundScore;
   maxScore += lv.matches;
+  results.push(passed ? "pass" : "miss");
   state.checked = true;
   render();
 
-  let msg = timedOut ? "⏱ Time’s up! " : "";
-  if (hits === lv.matches && wrong === 0) msg += `Perfect — you found all ${lv.matches}. `;
+  // When time runs out, whatever is selected counts as the guess
+  const pickNote = picked.length
+    ? `checked the ${picked.length} tile${picked.length === 1 ? "" : "s"} you had selected`
+    : "no tiles were selected";
+  let msg = timedOut ? `⏱ Time’s up — ${pickNote}. ` : "";
+  if (passed) msg += `Perfect — you found all ${lv.matches}. `;
   else msg += `You found ${hits} of ${lv.matches}` + (wrong ? ` and picked ${wrong} impostor${wrong > 1 ? "s" : ""}. ` : ". ");
   msg += "Now press “Remove backgrounds” to see the tiles on plain gray.";
   statusEl.textContent = msg;
+
+  const last = round >= ROUNDS;
+  showBanner(
+    passed ? "pass" : "miss",
+    (timedOut ? "⏱ Time’s up — " : passed ? "✓ " : "✕ ") + (passed ? "Round passed!" : "Round missed"),
+    (timedOut ? `${pickNote[0].toUpperCase() + pickNote.slice(1)} · ` : "") +
+      `Found ${hits} of ${lv.matches}` + (wrong ? ` · ${wrong} wrong` : "") + ` · +${roundScore} point${roundScore === 1 ? "" : "s"}` +
+      (last ? " · Set complete!" : "")
+  );
 
   $("legend").classList.add("show");
   $("checkBtn").disabled = true;
   $("revealBtn").disabled = false;
   $("nextBtn").disabled = false;
-  updateScoreline();
+  updateScoreboard();
 }
 
 function toggleReveal() {
+  hideBanner();
   state.revealed = !state.revealed;
   $("revealBtn").textContent = state.revealed ? "Bring backgrounds back" : "Remove backgrounds";
   render();
@@ -606,25 +730,98 @@ function toggleReveal() {
 }
 
 function next() {
-  if (round >= ROUNDS) {
-    round = 1; score = 0; maxScore = 0;
-  } else {
-    round++;
-  }
+  if (round >= ROUNDS) { showSummary(); return; }
+  round++;
   newRound();
 }
 
-function updateScoreline() {
-  const done = round >= ROUNDS && state && state.checked;
-  $("scoreline").textContent = done
-    ? `Final score: ${score} / ${maxScore} on ${level}. ${level === "hard" ? "Play again?" : "Try a harder level?"}`
-    : `Round ${round} of ${ROUNDS} · Score ${score}${maxScore ? " / " + maxScore : ""}`;
+// Round dots: ✓ passed, ✕ missed, thick ring = current, faint = still to come
+function fillPips(el) {
+  el.innerHTML = "";
+  for (let i = 0; i < ROUNDS; i++) {
+    const pip = document.createElement("span");
+    const r = results[i];
+    pip.className = "pip" + (r ? " " + r : i === round - 1 ? " current" : "");
+    pip.textContent = r === "pass" ? "✓" : r === "miss" ? "✕" : "";
+    el.appendChild(pip);
+  }
 }
+
+function updateScoreboard() {
+  $("roundNum").textContent = round;
+  $("scoreNum").textContent = score;
+  $("scoreMax").textContent = ` / ${ROUNDS * LEVELS[level].matches}`;
+  fillPips($("roundPips"));
+  const passed = results.filter((r) => r === "pass").length;
+  $("goalText").innerHTML = passed >= PASS_TARGET
+    ? `<b>Level cleared!</b> ${passed} rounds passed — keep going for a high score.`
+    : `Pass <b>${PASS_TARGET} of ${ROUNDS}</b> rounds to clear ${LEVEL_NAMES[level]} · ${passed} passed so far`;
+}
+
+// "Picked 1 of 2" — how many tiles are selected vs. how many real matches exist
+function updatePicked() {
+  const need = LEVELS[level].matches;
+  const n = state.tiles.filter((t) => t.selected).length;
+  const el = $("picked");
+  el.innerHTML = "";
+  for (let i = 0; i < Math.max(need, n); i++) {
+    const pip = document.createElement("span");
+    pip.className = "pick-pip" + (i < n ? " on" : "");
+    el.appendChild(pip);
+  }
+  const label = document.createElement("span");
+  label.textContent = n > need ? `${n} picked — only ${need} are real` : `${n} of ${need} picked`;
+  el.appendChild(label);
+  el.classList.toggle("over", n > need);
+  if (!state.checked && n === need) statusEl.textContent = `That’s ${need} — press Check when you’re sure.`;
+  else if (!state.checked) statusEl.textContent = "Click the tiles you think match, then press Check.";
+}
+
+// Stays up until clicked, backgrounds are removed, or the next round starts
+function showBanner(kind, title, sub) {
+  $("banner").className = "banner show " + kind;
+  $("bannerTitle").textContent = title;
+  $("bannerSub").textContent = sub;
+}
+function hideBanner() {
+  $("banner").classList.remove("show");
+}
+
+const NEXT_LEVEL = { easy: "medium", medium: "hard" };
+function showSummary() {
+  const passed = results.filter((r) => r === "pass").length;
+  const cleared = passed >= PASS_TARGET;
+  const name = LEVEL_NAMES[level];
+  $("sumTitle").textContent = cleared ? `${name} cleared! 🎉` : `${name} not cleared`;
+  $("sumLede").textContent = cleared
+    ? `You passed ${passed} of ${ROUNDS} rounds (you needed ${PASS_TARGET}).`
+    : `You passed ${passed} of ${ROUNDS} rounds — you need ${PASS_TARGET} to clear ${name}. Give it another go!`;
+  fillPips($("sumPips"));
+  $("sumPassed").innerHTML = `${passed}<small> / ${ROUNDS}</small>`;
+  $("sumScore").innerHTML = `${score}<small> / ${maxScore}</small>`;
+  const nextLv = NEXT_LEVEL[level];
+  $("sumNextBtn").classList.toggle("hidden", !(cleared && nextLv));
+  $("sumNextBtn").textContent = nextLv ? `Try ${LEVEL_NAMES[nextLv]} →` : "";
+  // Make the most likely next step the dark (primary) button
+  $("sumAgainBtn").className = cleared && nextLv ? "ghost-btn" : "got-it";
+  $("summaryModal").classList.remove("hidden");
+}
+function closeSummary() { $("summaryModal").classList.add("hidden"); }
+$("sumAgainBtn").addEventListener("click", () => { closeSummary(); startLevel(level); });
+$("sumNextBtn").addEventListener("click", () => { closeSummary(); startLevel(NEXT_LEVEL[level]); });
+$("sumMenuBtn").addEventListener("click", () => {
+  closeSummary();
+  stopTimer();
+  $("titlePanel").classList.add("hidden");
+  $("levelPanel").classList.remove("hidden");
+  $("menu").classList.remove("hidden");
+});
+$("banner").addEventListener("click", hideBanner);
 
 function startLevel(lv) {
   level = lv;
   document.querySelectorAll(".levels button").forEach((b) => b.classList.toggle("active", b.dataset.level === lv));
-  round = 1; score = 0; maxScore = 0;
+  round = 1; score = 0; maxScore = 0; results = [];
   newRound();
 }
 document.querySelectorAll(".levels button").forEach((btn) => {
