@@ -180,7 +180,11 @@
   /* Narrow screens (phones): stack — target/timer/check above the board */
   @media (max-width: 720px) {
     .game { --board: calc(100vw - 32px); padding: 12px 16px 24px; }
-    .topbar { width: 100%; flex-direction: column; gap: 8px; }
+    .topbar { width: 100%; flex-direction: column; gap: 8px; position: relative; }
+    .topbar-left { width: 100%; justify-content: center; }
+    .home-btn { position: absolute; left: 0; top: 0; padding: 6px 9px; }
+    .home-btn span { display: none; }
+    .topbar-right { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
     .play { grid-template-columns: 100%; grid-template-rows: auto; grid-template-areas: "top" "board" "bottom"; }
     .status { min-height: 0; }
   }
@@ -248,6 +252,14 @@
     border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
   }
   .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .home-btn {
+    font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px 6px 10px; border-radius: 999px;
+    border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+  }
+  .home-btn:hover { background: var(--ink); color: #fff; }
   @media (max-width: 560px) {
     .modal-card { padding: 18px; }
     .demo { grid-template-columns: 150px 1fr; gap: 16px; padding: 12px; }
@@ -277,11 +289,32 @@
   .goal b { color: var(--ink); }
 
   /* "Picked 1 of 2" tracker */
-  .picked { display: flex; align-items: center; gap: 5px; margin-top: 5px; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
-  .pick-pip { width: 13px; height: 13px; border-radius: 3px; border: 2px solid var(--ink); }
-  .pick-pip.on { background: var(--ink); }
-  .picked.over { color: var(--bad); }
-  .picked.over .pick-pip.on { background: var(--bad); border-color: var(--bad); }
+  /* "Find 3 tiles" — big, so players always know how many to pick */
+  .find-label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+  .find-big { display: block; font-size: 1.25rem; font-weight: 800; color: var(--ink); line-height: 1.15; }
+  .find-big b {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 1.6em; height: 1.6em; margin-right: 4px; vertical-align: -0.15em;
+    border-radius: 999px; background: var(--ink); color: #fff; font-size: 1.15em;
+  }
+  .find-big b.pop { animation: find-pop 0.6s ease 2; }
+  @keyframes find-pop { 50% { transform: scale(1.3); } }
+  .find-sub { display: block; font-size: 0.82rem; color: var(--muted); }
+
+  /* Picked slots: one box per real match; fills with the swatch color as you pick */
+  .picked {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: #fff; border: 1.5px solid #e4dfcf; border-radius: 10px; padding: 8px 12px;
+    font-size: 0.92rem; font-weight: 700; color: var(--ink);
+  }
+  .pick-pip { width: 22px; height: 22px; border-radius: 4px; border: 2px dashed #b9b29d; }
+  .pick-pip.on { border: 2px solid var(--ink); background: var(--pick-color, var(--ink)); }
+  .picked .pick-label { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .picked.full { border-color: var(--good); }
+  .picked.full .pick-label { color: var(--good); }
+  .picked.over { border-color: var(--bad); }
+  .picked.over .pick-label { color: var(--bad); }
+  .picked.over .pick-pip.extra { border-color: var(--bad); }
 
   /* Round result banner over the board */
   .banner {
@@ -311,7 +344,54 @@
     padding: 11px 24px; border-radius: 999px;
     border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
   }
-  .ghost-btn.hidden { display: none; }
+  .ghost-btn.hidden, .got-it.hidden { display: none; }
+
+  /* ---------- Player name, rating chip, leaderboard ---------- */
+  .name-form { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .name-form label { font-weight: 700; font-size: 0.95rem; color: var(--muted); }
+  .name-form input {
+    font: inherit; font-size: 1.2rem; text-align: center;
+    width: min(300px, 80vw); padding: 10px 16px;
+    border: 2px solid var(--ink); border-radius: 999px; background: #fff; color: var(--ink);
+  }
+  .name-form input.invalid { border-color: var(--bad); box-shadow: 0 0 0 4px rgba(214, 69, 69, 0.2); }
+  .title-links { display: flex; gap: 22px; }
+  .check-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.92rem; color: var(--ink); user-select: none; }
+  .check-label input { width: 18px; height: 18px; accent-color: var(--ink); cursor: pointer; margin: 0; }
+  .name-form input:disabled { opacity: 0.45; }
+  .how-actions { justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .anon-note { margin: 10px 0 0; font-size: 0.88rem; color: var(--muted); }
+
+  .player-chip {
+    font: inherit; font-size: 0.85rem; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 12px 5px 10px; border-radius: 999px;
+    border: 1.5px solid var(--ink); background: #fff; color: var(--ink);
+  }
+  .player-chip b { font-variant-numeric: tabular-nums; }
+  .player-chip .rank-tag { color: var(--muted); font-size: 0.75rem; }
+
+  .board-card h3 { margin-bottom: 4px; }
+  .lb-wrap { max-height: min(46vh, 380px); overflow-y: auto; border: 1.5px solid #e4dfcf; border-radius: 10px; background: #fff; }
+  .lb { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  .lb th {
+    position: sticky; top: 0; background: #fff; text-align: left;
+    font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    padding: 10px 12px; border-bottom: 1.5px solid #e4dfcf;
+  }
+  .lb td { padding: 9px 12px; border-bottom: 1px solid #f0ebdc; }
+  .lb tr:last-child td { border-bottom: none; }
+  .lb td.num, .lb th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .lb td.rating { font-weight: 800; font-size: 1.05rem; }
+  .lb tr.me td { background: #fff6d6; }
+  .lb .medal { font-size: 1.05rem; }
+  .lb .rank-tag { color: var(--muted); font-size: 0.82rem; }
+  .lb-empty { text-align: center; color: var(--muted); padding: 24px 12px; margin: 0; }
+  .lb-actions { align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .lb-actions .spacer { flex: 1; }
+  .sum-rating { font-size: 1.05rem; margin: 6px 0 0; }
+  .sum-rating .up { color: var(--good); font-weight: 800; }
+  .sum-rating .down { color: var(--bad); font-weight: 800; }
 
   .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--c); }
 </style>
@@ -320,7 +400,15 @@
   <div class="menu" id="menu">
     <div class="panel" id="titlePanel">
       <h2>Where’s the Color?</h2>
-      <button class="start" id="startBtn">Start</button>
+      <form class="name-form" id="nameForm" autocomplete="off">
+        <label for="nameInput">Your name (for the leaderboard)</label>
+        <input id="nameInput" maxlength="16" placeholder="Type your name" spellcheck="false">
+        <label class="check-label"><input type="checkbox" id="anonBox"> Play anonymously (don’t put me on the leaderboard)</label>
+        <button class="start" id="startBtn" type="submit">Start</button>
+      </form>
+      <div class="title-links">
+        <button class="back" id="titleBoardBtn" type="button">🏆 Leaderboard</button>
+      </div>
     </div>
 
     <div class="panel hidden" id="levelPanel">
@@ -384,7 +472,8 @@
 
       <p class="tip"><strong>Heads up:</strong> the background changes how a color looks. The same blue looks lighter on a dark background and darker on a light one. Trust the swatch, not your surroundings.</p>
 
-      <div class="modal-actions">
+      <div class="modal-actions how-actions">
+        <label class="check-label"><input type="checkbox" id="skipHowBox"> Don’t show this again</label>
         <button class="got-it" id="gotItBtn">Got it</button>
       </div>
     </div>
@@ -392,8 +481,17 @@
 
   <div class="game">
     <header class="topbar">
-      <h1>Where’s the Color?</h1>
+      <div class="topbar-left">
+        <button class="home-btn" id="homeBtn" title="Home — change player" aria-label="Home (change player)">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h5v-6h3v6h5V9.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Home</span>
+        </button>
+        <h1>Where’s the Color?</h1>
+      </div>
       <div class="topbar-right">
+        <button class="player-chip" id="playerChip" title="Your rating — open the leaderboard">
+          🏆 <span id="chipName"></span> <b id="chipRating"></b> <span class="rank-tag" id="chipRank"></span>
+        </button>
         <div class="levels" role="group" aria-label="Difficulty">
           <button data-level="easy" class="active">Easy</button>
           <button data-level="medium">Medium</button>
@@ -426,11 +524,12 @@
         <div class="target-row">
           <div class="target-card"><div class="swatch" id="swatch"></div></div>
           <div class="target-text">
-            <strong>← color you have to find</strong>
-            <span id="findCount"></span>
-            <div class="picked" id="picked"></div>
+            <span class="find-label">← Find</span>
+            <span class="find-big"><b id="findNum">2</b><span id="findWord">tiles</span></span>
+            <span class="find-sub">of this exact color</span>
           </div>
         </div>
+        <div class="picked" id="picked" aria-live="polite"></div>
 
         <div class="timer" id="timer">
           <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
@@ -465,10 +564,35 @@
         <div><span class="sb-label">Rounds passed</span><span class="sb-big" id="sumPassed"></span></div>
         <div><span class="sb-label">Score</span><span class="sb-big" id="sumScore"></span></div>
       </div>
+      <p class="sum-rating" id="sumRating"></p>
       <div class="modal-actions">
+        <button class="ghost-btn" id="sumCloseBtn">Close</button>
+        <button class="ghost-btn" id="sumBoardBtn">🏆 Leaderboard</button>
         <button class="ghost-btn" id="sumMenuBtn">Choose difficulty</button>
         <button class="ghost-btn" id="sumAgainBtn">Play again</button>
         <button class="got-it" id="sumNextBtn">Next level →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="boardModal" role="dialog" aria-modal="true" aria-labelledby="boardTitle">
+    <div class="modal-card board-card">
+      <h3 id="boardTitle">🏆 Leaderboard</h3>
+      <p class="lede">Ratings work like chess Elo. Everyone starts at 1000. Each round is a match against the puzzle: beat a hard round and you gain a lot; miss an easy one and you lose a lot. Partial finds earn partial credit.</p>
+      <div class="lb-wrap">
+        <table class="lb">
+          <thead><tr><th>#</th><th>Player</th><th class="num">Rating</th><th class="num">Best</th><th class="num">Rounds</th><th class="num">Passed</th></tr></thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+        <p class="lb-empty" id="lbEmpty">No ratings yet — play a round to get on the board.</p>
+      </div>
+      <p class="anon-note" id="lbAnonNote" style="display:none">You’re playing anonymously, so you’re not on this list. Your rating this session: <b id="lbAnonRating"></b>.</p>
+      <p class="lede" id="lbStorageWarn" style="display:none; margin: 10px 0 0; color: var(--bad)">This browser is blocking saved data (private window?), so ratings will reset when the page is closed.</p>
+      <div class="modal-actions lb-actions">
+        <button class="back" id="lbResetBtn">Reset leaderboard</button>
+        <span class="spacer"></span>
+        <button class="ghost-btn" id="lbSwitchBtn">Change player</button>
+        <button class="got-it" id="lbCloseBtn">Close</button>
       </div>
     </div>
   </div>
@@ -543,6 +667,83 @@ const hueDiff = (from, to) => ((to - from + 540) % 360) - 180; // signed shortes
 
 let level = "easy", round = 1, score = 0, maxScore = 0;
 let results = []; // "pass" | "miss" for each finished round in this set
+
+// ---------- Elo rating (saved in this browser only) ----------
+const STORE_KEY = "wtc-leaderboard-v1";
+const START_RATING = 1000;
+// Each round is a "match" against the puzzle. Its rating rises with level and,
+// where the timer shrinks, with round number.
+const LEVEL_RATING = { easy: 850, medium: 1150, hard: 1450 };
+const roundRating = () => LEVEL_RATING[level] + (LEVELS[level].timeStep ? 40 * (round - 1) : 0);
+const RANKS = [ // [min rating, title]
+  [1500, "Master Perceiver"], [1300, "Color Expert"], [1100, "Sharp Eye"], [900, "Novice"], [-Infinity, "Beginner"],
+];
+const rankTitle = (r) => RANKS.find(([min]) => r >= min)[1];
+const fmtDelta = (d) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d);
+
+// Can this browser save data? (Private windows or some file:// setups block it.)
+const storageOK = (() => {
+  try { localStorage.setItem("wtc-test", "1"); localStorage.removeItem("wtc-test"); return true; } catch { return false; }
+})();
+function loadPlayers() {
+  if (!storageOK) return players; // keep what's in memory
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return players || {}; }
+}
+function savePlayers() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(players)); } catch {}
+}
+let players = {};
+players = loadPlayers();
+let playerKey = null;      // lower-cased name
+let setStartRating = null; // rating at the start of the current 5-round set
+const newPlayer = (name) => ({ name, rating: START_RATING, peak: START_RATING, rounds: 0, passes: 0, skipTutorial: false });
+// Anonymous players get a rating for this session only; they're never saved or listed.
+let anonPlayer = null;
+function me() {
+  if (anonPlayer) return anonPlayer;
+  return players[playerKey] ||= newPlayer(playerKey);
+}
+function setAnonymous() {
+  playerKey = null;
+  anonPlayer ||= newPlayer("Anonymous"); // keeps the same session rating if they come back
+  updateChip();
+}
+function setPlayer(name) {
+  anonPlayer = null;
+  playerKey = name.trim().toLowerCase();
+  players = loadPlayers();
+  me(); // creates the player if new; the name is matched case-insensitively
+  if (players[playerKey].name === playerKey) players[playerKey].name = name.trim(); // first time: keep their spelling
+  savePlayers();
+  updateChip();
+}
+// scoreFrac: 1 = passed, 0 = nothing right, in between = partial credit
+function rateRound(scoreFrac) {
+  const p = me();
+  const expected = 1 / (1 + 10 ** ((roundRating() - p.rating) / 400));
+  const K = p.rounds < 10 ? 48 : 32; // new players move faster, like provisional chess ratings
+  const delta = Math.round(K * (scoreFrac - expected));
+  p.rating += delta;
+  p.peak = Math.max(p.peak, p.rating);
+  p.rounds += 1;
+  if (scoreFrac === 1) p.passes += 1;
+  savePlayers();
+  updateChip();
+  return delta;
+}
+function updateChip() {
+  if (!playerKey && !anonPlayer) return;
+  const p = me();
+  $("chipName").textContent = p.name;
+  $("chipRating").textContent = p.rating;
+  $("chipRank").textContent = anonPlayer ? "not ranked" : rankTitle(p.rating);
+}
+// "Don't show this again" is remembered per player (session-only when anonymous)
+function setSkipTutorial(on) {
+  if (!playerKey && !anonPlayer) return;
+  me().skipTutorial = on;
+  savePlayers();
+}
 let state = null; // { target, regions, tiles, checked, revealed }
 
 function makeTarget() {
@@ -625,7 +826,11 @@ function newRound() {
   state = { target, regions, tiles, checked: false, revealed: false };
   render();
   statusEl.textContent = "Click the tiles you think match, then press Check.";
-  $("findCount").textContent = `Find all ${lv.matches} matching tiles`;
+  $("findNum").textContent = lv.matches;
+  $("findWord").textContent = lv.matches === 1 ? "tile" : "tiles";
+  $("findNum").classList.remove("pop");
+  void $("findNum").offsetWidth; // restart the "pop" animation each round
+  $("findNum").classList.add("pop");
   $("checkBtn").disabled = false;
   $("revealBtn").disabled = true;
   $("revealBtn").textContent = "Remove backgrounds";
@@ -690,6 +895,7 @@ function check(timedOut = false) {
   score += roundScore;
   maxScore += lv.matches;
   results.push(passed ? "pass" : "miss");
+  const ratingDelta = rateRound(roundScore / lv.matches);
   state.checked = true;
   render();
 
@@ -709,7 +915,7 @@ function check(timedOut = false) {
     (timedOut ? "⏱ Time’s up — " : passed ? "✓ " : "✕ ") + (passed ? "Round passed!" : "Round missed"),
     (timedOut ? `${pickNote[0].toUpperCase() + pickNote.slice(1)} · ` : "") +
       `Found ${hits} of ${lv.matches}` + (wrong ? ` · ${wrong} wrong` : "") + ` · +${roundScore} point${roundScore === 1 ? "" : "s"}` +
-      (last ? " · Set complete!" : "")
+      ` · Rating ${fmtDelta(ratingDelta)}` + (last ? " · Set complete!" : "")
   );
 
   $("legend").classList.add("show");
@@ -764,15 +970,19 @@ function updatePicked() {
   const n = state.tiles.filter((t) => t.selected).length;
   const el = $("picked");
   el.innerHTML = "";
+  el.style.setProperty("--pick-color", hsl(state.target));
   for (let i = 0; i < Math.max(need, n); i++) {
     const pip = document.createElement("span");
-    pip.className = "pick-pip" + (i < n ? " on" : "");
+    pip.className = "pick-pip" + (i < n ? " on" : "") + (i >= need ? " extra" : "");
     el.appendChild(pip);
   }
   const label = document.createElement("span");
-  label.textContent = n > need ? `${n} picked — only ${need} are real` : `${n} of ${need} picked`;
+  label.className = "pick-label";
+  label.textContent = n > need ? `${n} picked — only ${need} needed` : `${n} / ${need} picked`;
   el.appendChild(label);
   el.classList.toggle("over", n > need);
+  el.classList.toggle("full", n === need);
+  $("checkBtn").textContent = state.checked ? "Check" : `Check (${n}/${need})`;
   if (!state.checked && n === need) statusEl.textContent = `That’s ${need} — press Check when you’re sure.`;
   else if (!state.checked) statusEl.textContent = "Click the tiles you think match, then press Check.";
 }
@@ -804,11 +1014,19 @@ function showSummary() {
   $("sumNextBtn").textContent = nextLv ? `Try ${LEVEL_NAMES[nextLv]} →` : "";
   // Make the most likely next step the dark (primary) button
   $("sumAgainBtn").className = cleared && nextLv ? "ghost-btn" : "got-it";
+  const r = me().rating, d = r - setStartRating;
+  $("sumRating").innerHTML = `Rating ${setStartRating} → <b>${r}</b> <span class="${d >= 0 ? "up" : "down"}">(${fmtDelta(d)})</span> · ${rankTitle(r)}`;
   $("summaryModal").classList.remove("hidden");
 }
 function closeSummary() { $("summaryModal").classList.add("hidden"); }
 $("sumAgainBtn").addEventListener("click", () => { closeSummary(); startLevel(level); });
-$("sumNextBtn").addEventListener("click", () => { closeSummary(); startLevel(NEXT_LEVEL[level]); });
+$("sumNextBtn").addEventListener("click", () => {
+  const nextLv = NEXT_LEVEL[level];
+  if (!nextLv) return; // no level after Hard
+  closeSummary();
+  startLevel(nextLv);
+});
+$("sumCloseBtn").addEventListener("click", closeSummary);
 $("sumMenuBtn").addEventListener("click", () => {
   closeSummary();
   stopTimer();
@@ -819,9 +1037,11 @@ $("sumMenuBtn").addEventListener("click", () => {
 $("banner").addEventListener("click", hideBanner);
 
 function startLevel(lv) {
+  if (!LEVELS[lv]) return;
   level = lv;
   document.querySelectorAll(".levels button").forEach((b) => b.classList.toggle("active", b.dataset.level === lv));
   round = 1; score = 0; maxScore = 0; results = [];
+  setStartRating = me().rating;
   newRound();
 }
 document.querySelectorAll(".levels button").forEach((btn) => {
@@ -837,12 +1057,14 @@ function openHow(fromMenu) {
   howFromMenu = fromMenu;
   if (!fromMenu) pauseTimer();
   $("gotItBtn").textContent = fromMenu ? "Got it — choose a difficulty" : "Got it — back to the game";
+  $("skipHowBox").checked = !!me().skipTutorial;
   $("howModal").classList.remove("hidden");
   $("gotItBtn").focus();
 }
 function closeHow() {
   if ($("howModal").classList.contains("hidden")) return;
   $("howModal").classList.add("hidden");
+  setSkipTutorial($("skipHowBox").checked);
   if (howFromMenu) {
     $("titlePanel").classList.add("hidden");
     $("levelPanel").classList.remove("hidden");
@@ -852,10 +1074,115 @@ function closeHow() {
 }
 $("gotItBtn").addEventListener("click", closeHow);
 $("helpBtn").addEventListener("click", () => openHow(false));
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeHow(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("boardModal").classList.contains("hidden")) closeBoard();
+  else if (!$("summaryModal").classList.contains("hidden")) closeSummary();
+  else closeHow();
+});
+
+// ---------- Leaderboard ----------
+let boardPausedGame = false;
+function openBoard() {
+  players = loadPlayers();
+  const rows = Object.entries(players)
+    .filter(([, p]) => p.rounds > 0) // only list people who have actually played
+    .sort((a, b) => b[1].rating - a[1].rating);
+  const body = $("lbBody");
+  body.innerHTML = "";
+  rows.forEach(([key, p], i) => {
+    const tr = document.createElement("tr");
+    if (key === playerKey) tr.className = "me";
+    const cells = [
+      i < 3 ? ["🥇", "🥈", "🥉"][i] : String(i + 1),
+      null, // name + rank title, filled below
+      String(p.rating), String(p.peak), String(p.rounds), String(p.passes),
+    ];
+    cells.forEach((text, c) => {
+      const td = document.createElement("td");
+      if (c === 0 && i < 3) td.className = "medal";
+      if (c >= 2) td.className = "num" + (c === 2 ? " rating" : "");
+      if (c === 1) {
+        td.textContent = p.name + " ";               // textContent: names are user input
+        const tag = document.createElement("span");
+        tag.className = "rank-tag";
+        tag.textContent = "· " + rankTitle(p.rating);
+        td.appendChild(tag);
+      } else td.textContent = text;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+  $("lbEmpty").style.display = rows.length ? "none" : "block";
+  $("lbStorageWarn").style.display = storageOK ? "none" : "block";
+  $("lbSwitchBtn").style.display = playerKey || anonPlayer ? "" : "none";
+  $("lbAnonNote").style.display = anonPlayer ? "block" : "none";
+  if (anonPlayer) $("lbAnonRating").textContent = anonPlayer.rating;
+  // Pause the round if the board is opened mid-game
+  boardPausedGame = $("menu").classList.contains("hidden") && !!expiryId;
+  if (boardPausedGame) pauseTimer();
+  $("boardModal").classList.remove("hidden");
+  $("lbCloseBtn").focus();
+}
+function closeBoard() {
+  $("boardModal").classList.add("hidden");
+  if (boardPausedGame) { boardPausedGame = false; resumeTimer(); }
+}
+function goToTitle() {
+  stopTimer(); pausedLeft = null; boardPausedGame = false;
+  ["boardModal", "summaryModal", "howModal"].forEach((id) => $(id).classList.add("hidden"));
+  $("levelPanel").classList.add("hidden");
+  $("titlePanel").classList.remove("hidden");
+  $("menu").classList.remove("hidden");
+  $("nameInput").value = playerKey ? me().name : "";
+  $("anonBox").checked = !!anonPlayer;
+  $("anonBox").dispatchEvent(new Event("change"));
+  $("nameInput").focus();
+}
+$("lbCloseBtn").addEventListener("click", closeBoard);
+$("lbSwitchBtn").addEventListener("click", goToTitle);
+$("homeBtn").addEventListener("click", goToTitle); // leaves the current round unscored
+$("lbResetBtn").addEventListener("click", () => {
+  if (!confirm("Erase every player's rating on this computer? This can't be undone.")) return;
+  players = {};
+  savePlayers();
+  if (playerKey) { me(); savePlayers(); updateChip(); setStartRating = START_RATING; }
+  openBoard();
+});
+$("titleBoardBtn").addEventListener("click", openBoard);
+$("playerChip").addEventListener("click", openBoard);
+$("sumBoardBtn").addEventListener("click", openBoard);
 
 // Menu flow: title → how to play → difficulty select → game
-$("startBtn").addEventListener("click", () => openHow(true));
+$("nameForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = $("nameInput").value.trim();
+  const showLevels = () => {
+    $("titlePanel").classList.add("hidden");
+    $("levelPanel").classList.remove("hidden");
+  };
+  if ($("anonBox").checked) {
+    setAnonymous();
+    if (me().skipTutorial) showLevels(); else openHow(true);
+    return;
+  }
+  if (!name) {
+    $("nameInput").classList.add("invalid");
+    $("nameInput").placeholder = "Enter a name to start";
+    $("nameInput").focus();
+    return;
+  }
+  $("nameInput").classList.remove("invalid");
+  setPlayer(name);
+  if (me().skipTutorial) showLevels(); else openHow(true);
+});
+$("nameInput").addEventListener("input", () => $("nameInput").classList.remove("invalid"));
+$("anonBox").addEventListener("change", () => {
+  const anon = $("anonBox").checked;
+  $("nameInput").disabled = anon;
+  $("nameInput").classList.remove("invalid");
+  $("nameInput").placeholder = anon ? "Playing anonymously" : "Type your name";
+});
 $("backBtn").addEventListener("click", () => {
   $("levelPanel").classList.add("hidden");
   $("titlePanel").classList.remove("hidden");
